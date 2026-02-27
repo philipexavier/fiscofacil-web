@@ -1,78 +1,100 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { useState } from 'react'
+import { Search, Upload } from 'lucide-react'
+import { buscarProdutos } from '../lib/api'
+import toast, { Toaster } from 'react-hot-toast'
+import Link from 'next/link'
 
 export default function Home() {
+  const [query, setQuery] = useState('')
+  const [resultados, setResultados] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  async function handleBuscar(e) {
+    e.preventDefault()
+    if (!query.trim()) return
+    setLoading(true)
+    try {
+      const res = await buscarProdutos(query)
+      setResultados(res.data.hits || [])
+      if (res.data.hits.length === 0) toast('Nenhum produto encontrado.')
+    } catch (err) {
+      toast.error('Erro na busca. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black`}
-    >
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the index.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center px-4">
+      <Toaster />
+
+      {/* Header */}
+      <div className="mt-16 mb-8 text-center">
+        <h1 className="text-4xl font-bold text-blue-700">FiscoFácil</h1>
+        <p className="text-gray-500 mt-2">Catálogo inteligente de produtos + Guia tributário com IA</p>
+      </div>
+
+      {/* Barra de busca */}
+      <form onSubmit={handleBuscar} className="w-full max-w-2xl">
+        <div className="flex items-center border-2 border-blue-400 rounded-full px-4 py-3 bg-white shadow-md">
+          <Search className="text-gray-400 mr-3" size={20} />
+          <input
+            type="text"
+            placeholder="Pesquise por descrição, NCM, marca, fabricante ou código de barras..."
+            className="flex-1 outline-none text-gray-700"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="ml-3 bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm hover:bg-blue-700"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs/pages/getting-started?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {loading ? 'Buscando...' : 'Buscar'}
+          </button>
         </div>
-      </main>
+
+        {/* Botões de ação */}
+        <div className="flex gap-3 mt-4 justify-center">
+          <Link href="/busca-em-massa">
+            <button type="button" className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+              <Upload size={16} /> Pesquisa em Massa
+            </button>
+          </Link>
+          <Link href="/login">
+            <button type="button" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+              Área do Contador
+            </button>
+          </Link>
+        </div>
+      </form>
+
+      {/* Resultados */}
+      {resultados.length > 0 && (
+        <div className="w-full max-w-2xl mt-8 space-y-3">
+          {resultados.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-semibold text-gray-800">{item.descricao}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    NCM: <span className="text-blue-600">{item.ncm}</span> |
+                    Marca: {item.marca} |
+                    Fabricante: {item.fabricante}
+                  </p>
+                  {item.gtin && <p className="text-xs text-gray-400">EAN: {item.gtin}</p>}
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  item.risco_fiscal === 'ALTO' ? 'bg-red-100 text-red-600' :
+                  item.risco_fiscal === 'MÉDIO' ? 'bg-yellow-100 text-yellow-600' :
+                  'bg-green-100 text-green-600'
+                }`}>
+                  {item.risco_fiscal || 'BAIXO'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  );
+  )
 }
