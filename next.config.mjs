@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  output: 'standalone',       // ← obrigatório para o Dockerfile acima
   reactStrictMode: true,
-};
+  allowedDevOrigins: [
+    'localhost',
+    '127.0.0.1',
+  ],
+}
 
-export default nextConfig;
+module.exports = nextConfig
