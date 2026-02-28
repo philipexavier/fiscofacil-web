@@ -10,17 +10,15 @@ export default async function handler(req, res) {
   const MODELO     = process.env.JUREMA_MODEL      || 'qwen2:1.5b'
   const API_KEY    = process.env.OPENWEBUI_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MDhiZjU4LTc4N2EtNGMzMC04Mjc0LTg0NDI4ZTg5YzUzNSIsImV4cCI6MTc3NDczNDgzNywianRpIjoiYjcyMDBmNDktMjJiZi00YTNmLWJkYTAtMDQ3ZmFmNjg4MzBjIn0.Djm3PSj0zBTa0kHk7qwX3zHMQ5nxnJrOWTRGFjiL75g'
 
-  const prompt = `Você é um especialista em classificação fiscal brasileira.
-O usuário descreveu o seguinte produto: "${descricao}"
+  // Prompt com exemplo concreto para forçar preenchimento correto
+  const prompt = `Classifique o produto fiscal brasileiro: "${descricao}"
 
-Responda APENAS com JSON no formato abaixo, sem texto adicional:
-{
-  "ncm_sugerido": "0000.00.00",
-  "descricao_ncm": "Descrição oficial do NCM",
-  "confianca": "ALTA|MEDIA|BAIXA",
-  "justificativa": "Breve justificativa",
-  "ncms_alternativos": ["0000.00.00"]
-}`
+Use a tabela NCM disponível nos documentos para encontrar o código correto.
+
+Exemplo de resposta para "parafuso de aço inoxidável":
+{"ncm_sugerido":"7318.15.00","descricao_ncm":"Parafusos de ferro ou aço","confianca":"ALTA","justificativa":"Parafusos de aço inoxidável se enquadram no capítulo 73 da NCM, posição 7318, que trata de parafusos, pinos, porcas e artigos semelhantes","ncms_alternativos":["7318.14.00","7318.16.00"]}
+
+Responda SOMENTE com JSON preenchido com dados reais para o produto "${descricao}". Escolha confianca como ALTA, MEDIA ou BAIXA:`
 
   try {
     res.setHeader('Content-Type',  'text/event-stream')
@@ -49,6 +47,7 @@ Responda APENAS com JSON no formato abaixo, sem texto adicional:
     const reader  = response.body.getReader()
     const decoder = new TextDecoder()
     let   buffer  = ''
+    let   flushed = false  // garante que [DONE] seja processado só uma vez
 
     while (true) {
       const { done, value } = await reader.read()
@@ -57,16 +56,37 @@ Responda APENAS com JSON no formato abaixo, sem texto adicional:
       const lines = decoder.decode(value).split('\n').filter(Boolean)
 
       for (const line of lines) {
-        // OpenWebUI envia "data: {...}" prefixado
         const raw = line.startsWith('data: ') ? line.slice(6) : line
 
-        // Sinal de fim do stream
         if (raw === '[DONE]') {
-          const match = buffer.match(/\{[\s\S]*\}/)
+          if (flushed) continue
+          flushed = true
+
+          // Tenta extrair JSON do buffer acumulado
+          // Suporta resposta com markdown ```json ... ``` ou JSON puro
+          const cleaned = buffer
+            .replace(/```json\s*/gi, '')
+            .replace(/```\s*/g, '')
+            .trim()
+
+          const match = cleaned.match(/\{[\s\S]*\}/)
+
           if (match) {
             try {
               const resultado = JSON.parse(match[0])
-              res.write(`data: ${JSON.stringify({ done: true, resultado })}\n\n`)
+
+              // Normaliza campos obrigatórios caso o modelo omita algum
+              const normalizado = {
+                ncm_sugerido:      resultado.ncm_sugerido      || '0000.00.00',
+                descricao_ncm:     resultado.descricao_ncm     || descricao,
+                confianca:         ['ALTA','MEDIA','BAIXA'].includes(resultado.confianca)
+                                     ? resultado.confianca : 'BAIXA',
+                justificativa:     resultado.justificativa     || 'Classificação baseada na tabela NCM vigente',
+                ncms_alternativos: Array.isArray(resultado.ncms_alternativos)
+                                     ? resultado.ncms_alternativos : [],
+              }
+
+              res.write(`data: ${JSON.stringify({ done: true, resultado: normalizado })}\n\n`)
             } catch {
               res.write(`data: ${JSON.stringify({ done: true, erro: 'JSON inválido na resposta', raw: buffer })}\n\n`)
             }
@@ -78,7 +98,6 @@ Responda APENAS com JSON no formato abaixo, sem texto adicional:
 
         try {
           const json  = JSON.parse(raw)
-          // Formato OpenAI streaming: choices[0].delta.content
           const token = json.choices?.[0]?.delta?.content || ''
           if (token) {
             buffer += token
@@ -88,8 +107,25 @@ Responda APENAS com JSON no formato abaixo, sem texto adicional:
       }
     }
 
+    // Fallback: stream terminou sem [DONE] (alguns proxies cortam)
+    if (!flushed && buffer) {
+      const cleaned = buffer.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+      const match   = cleaned.match(/\{[\s\S]*\}/)
+      if (match) {
+        try {
+          const resultado = JSON.parse(match[0])
+          res.write(`data: ${JSON.stringify({ done: true, resultado })}\n\n`)
+        } catch {
+          res.write(`data: ${JSON.stringify({ done: true, erro: 'JSON inválido (fallback)', raw: buffer })}\n\n`)
+        }
+      } else {
+        res.write(`data: ${JSON.stringify({ done: true, erro: 'Stream encerrado sem JSON', raw: buffer })}\n\n`)
+      }
+    }
+
     res.end()
   } catch (err) {
+    console.error('JUREMA classificar ERROR:', err.message)
     res.write(`data: ${JSON.stringify({ erro: err.message })}\n\n`)
     res.end()
   }
