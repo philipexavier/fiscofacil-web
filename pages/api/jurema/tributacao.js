@@ -1,3 +1,13 @@
+export const config = {
+  api: {
+    responseLimit: false,
+    bodyParser: true,
+  },
+}
+
+// Aumenta timeout para 120s
+export const maxDuration = 120
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 

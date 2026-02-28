@@ -12,21 +12,47 @@ export default function Classificar() {
   const [regime, setRegime]           = useState('Lucro Presumido')
 
   async function handleClassificar(e) {
-    e.preventDefault()
-    if (!descricao.trim()) return
-    setLoadingIA(true)
-    setClassificacao(null)
-    setTributacao(null)
+  e.preventDefault()
+  if (!descricao.trim()) return
+  setLoadingIA(true)
+  setClassificacao(null)
+  setTributacao(null)
+
     try {
-      const res  = await fetch('/api/jurema/classificar', {
+      const res = await fetch('/api/jurema/classificar', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ descricao }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.erro)
-      setClassificacao(data)
-      toast.success('NCM classificado pela Jurema!')
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      const reader  = res.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const lines = decoder.decode(value).split('\n')
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const json = JSON.parse(line.slice(6))
+
+            if (json.erro) throw new Error(json.erro)
+
+            if (json.done && json.resultado) {
+              setClassificacao(json.resultado)
+              toast.success('NCM classificado pela Jurema!')
+            }
+          } catch (parseErr) {
+            if (parseErr.message !== 'Unexpected end of JSON input') {
+              throw parseErr
+            }
+          }
+        }
+      }
     } catch (err) {
       toast.error(`Erro: ${err.message}`)
     } finally {
@@ -95,6 +121,7 @@ export default function Classificar() {
                 onChange={e => setRegime(e.target.value)}
                 className="border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none focus:border-blue-400"
               >
+                <option>Chat</option>
                 <option>Simples Nacional</option>
                 <option>Lucro Presumido</option>
                 <option>Lucro Real</option>
@@ -102,10 +129,22 @@ export default function Classificar() {
               <button
                 type="submit"
                 disabled={loadingIA || !descricao.trim()}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm font-semibold 
+                           flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50"
               >
-                <Zap size={16} />
-                {loadingIA ? 'Jurema analisando...' : 'Classificar com Jurema'}
+                {loadingIA ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" 
+                              stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" 
+                            d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Jurema analisando... pode levar 30s
+                  </span>
+                ) : (
+                  <><Zap size={16} /> Classificar com Jurema</>
+                )}
               </button>
             </div>
           </form>
