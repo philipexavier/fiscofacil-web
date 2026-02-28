@@ -1,4 +1,5 @@
 'use client'
+import { Upload } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import toast, { Toaster } from 'react-hot-toast'
@@ -47,6 +48,7 @@ export default function Treinamento() {
   const [saving, setSaving]         = useState(false)
   const [filterCat, setFilterCat]   = useState('all')
   const [importing, setImporting]   = useState(null)
+  const [dragOver, setDragOver]     = useState(false)
 
   // Carregar do localStorage
   useEffect(() => {
@@ -145,6 +147,70 @@ export default function Treinamento() {
     setDataset([])
     localStorage.removeItem('jurema_dataset')
     toast.success('Dataset limpo!')
+  }
+  const importFile = async (file) => {
+    if (!file) return
+    setImporting(file.name)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res = await fetch('/api/admin/import', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
+
+      const SYSTEM_PROMPT_LOCAL = SYSTEM_PROMPT // usa o SYSTEM_PROMPT já definido no arquivo
+
+      const newEntries = data.examples.map(ex => {
+        // Se já vier no formato Ollama { _raw: { messages: [...] } }
+        if (ex._raw?.messages) {
+          return {
+            id:       Date.now() + Math.random(),
+            category: ex.category || 'outro',
+            messages: ex._raw.messages,
+            meta: {
+              word_count:      ex._raw.messages[2]?.content?.split(/\s+/).length || 0,
+              has_json:        ex._raw.messages[2]?.content?.includes('{') || false,
+              source_verified: false,
+              within_limit:    true,
+              created_at:      new Date().toISOString(),
+              source_file:     file.name,
+            }
+          }
+        }
+        // Formato user/assistant
+        return {
+          id:       Date.now() + Math.random(),
+          category: ex.category || 'outro',
+          messages: [
+            { role: 'system',    content: SYSTEM_PROMPT_LOCAL },
+            { role: 'user',      content: ex.user },
+            { role: 'assistant', content: ex.assistant },
+          ],
+          meta: {
+            word_count:      ex.assistant?.split(/\s+/).length || 0,
+            has_json:        ex.assistant?.includes('{') || false,
+            source_verified: false,
+            within_limit:    true,
+            created_at:      new Date().toISOString(),
+            source_file:     file.name,
+          }
+        }
+      })
+
+      const updated = [...dataset, ...newEntries]
+      setDataset(updated)
+      persist(updated)
+      toast.success(`Arquivo importado! +${newEntries.length} exemplos`)
+    } catch (e) {
+      toast.error('Erro ao importar: ' + e.message)
+    } finally {
+      setImporting(null)
+    }
   }
   const importSource = async (source) => {
     setImporting(source)
@@ -300,7 +366,34 @@ export default function Treinamento() {
                   </button>
                 ))}
               </div>
-              
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOver(false)
+                  if (e.dataTransfer.files.length > 0) {
+                    importFile(e.dataTransfer.files[0])
+                  }
+                }}
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                  dragOver ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/50'
+                }`}
+              >
+                <p className="text-xs text-slate-500 mb-2">ou arraste um arquivo aqui</p>
+                <label className="text-xs text-sky-400 cursor-pointer hover:underline">
+                  Clique para selecionar arquivo
+                  <input
+                    type="file"
+                    accept=".json,.jsonl"
+                    onChange={(e) => importFile(e.target.files?.[0])}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
             {/* IMPORTADOR */}
             <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
@@ -525,5 +618,5 @@ export default function Treinamento() {
         </div>
       )}
     </>
-  )
+ )
 }
