@@ -1,11 +1,10 @@
 'use client'
-import { Upload } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import toast, { Toaster } from 'react-hot-toast'
 import {
   Plus, Trash2, Download, Eye, Tag, Shield,
-  FileJson, RefreshCw, CheckCircle, XCircle, ChevronDown
+  FileJson, RefreshCw, CheckCircle, Upload
 } from 'lucide-react'
 
 const SYSTEM_PROMPT = `Você é a Jurema, assistente especialista em classificação NCM e reforma tributária brasileira.
@@ -21,11 +20,11 @@ REGRAS OBRIGATÓRIAS (SafeGuards):
 8. Temas jurídicos complexos: recomende especialista tributário`
 
 const CATEGORIES = [
-  { id: 'ncm',       label: 'NCM',              icon: '🏷️',  color: 'bg-emerald-900/50 text-emerald-300 border-emerald-700' },
-  { id: 'reforma',   label: 'Reforma Tributária',icon: '📋',  color: 'bg-blue-900/50 text-blue-300 border-blue-700' },
-  { id: 'safeguard', label: 'SafeGuard',         icon: '🛡️',  color: 'bg-purple-900/50 text-purple-300 border-purple-700' },
-  { id: 'avancado',  label: 'Avançado',          icon: '⚡',  color: 'bg-orange-900/50 text-orange-300 border-orange-700' },
-  { id: 'outro',     label: 'Outro',             icon: '📦',  color: 'bg-slate-800 text-slate-300 border-slate-600' },
+  { id: 'ncm',       label: 'NCM',               icon: '🏷️', color: 'bg-emerald-900/50 text-emerald-300 border-emerald-700' },
+  { id: 'reforma',   label: 'Reforma Tributária', icon: '📋', color: 'bg-blue-900/50 text-blue-300 border-blue-700' },
+  { id: 'safeguard', label: 'SafeGuard',          icon: '🛡️', color: 'bg-purple-900/50 text-purple-300 border-purple-700' },
+  { id: 'avancado',  label: 'Avançado',           icon: '⚡', color: 'bg-orange-900/50 text-orange-300 border-orange-700' },
+  { id: 'outro',     label: 'Outro',              icon: '📦', color: 'bg-slate-800 text-slate-300 border-slate-600' },
 ]
 
 const BADGE_COLORS = {
@@ -50,7 +49,6 @@ export default function Treinamento() {
   const [importing, setImporting]   = useState(null)
   const [dragOver, setDragOver]     = useState(false)
 
-  // Carregar do localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('jurema_dataset')
@@ -68,6 +66,7 @@ export default function Treinamento() {
     : wordCount <= 300 ? 'text-yellow-400'
     : 'text-red-400'
 
+  // ── ADICIONAR EXEMPLO MANUAL ─────────────────────────────
   const addExample = async () => {
     if (!question.trim() || !answer.trim()) {
       toast.error('Preencha pergunta e resposta!')
@@ -92,21 +91,21 @@ export default function Treinamento() {
         source_verified: chkSource,
         within_limit:    chkLimit,
         created_at:      new Date().toISOString(),
+        source_file:     'manual',
       },
     }
 
-    // Salvar no Supabase via API Route
     setSaving(true)
     try {
       const res = await fetch('/api/admin/save', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
+        body:    JSON.stringify(entry),
       })
-      if (!res.ok) throw new Error('Erro ao salvar no Supabase')
+      if (!res.ok) throw new Error('Supabase error')
       toast.success('Salvo no Supabase! ✅')
-    } catch (e) {
-      toast('Supabase offline — salvo só no localStorage', { icon: '⚠️' })
+    } catch {
+      toast('Supabase offline — salvo no localStorage', { icon: '⚠️' })
     } finally {
       setSaving(false)
     }
@@ -118,6 +117,75 @@ export default function Treinamento() {
     toast.success(`Exemplo adicionado! Total: ${updated.length}`)
   }
 
+  // ── IMPORTAR ARQUIVO ─────────────────────────────────────
+  const importFile = async (file) => {
+    if (!file) return
+    setImporting(file.name)
+
+    try {
+      const content = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = e => resolve(e.target.result)
+        reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
+        reader.readAsText(file, 'utf-8')
+      })
+
+      const res = await fetch('/api/admin/import', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ content, filename: file.name }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
+
+      const newEntries = data.examples.map(ex => {
+        if (ex._raw?.messages) {
+          return {
+            id:       Date.now() + Math.random(),
+            category: ex.category || 'outro',
+            messages: ex._raw.messages,
+            meta: {
+              word_count:      ex._raw.messages[2]?.content?.split(/\s+/).length || 0,
+              has_json:        ex._raw.messages[2]?.content?.includes('{') || false,
+              source_verified: false,
+              within_limit:    true,
+              created_at:      new Date().toISOString(),
+              source_file:     file.name,
+            }
+          }
+        }
+        return {
+          id:       Date.now() + Math.random(),
+          category: ex.category || 'outro',
+          messages: [
+            { role: 'system',    content: SYSTEM_PROMPT },
+            { role: 'user',      content: ex.user },
+            { role: 'assistant', content: ex.assistant },
+          ],
+          meta: {
+            word_count:      ex.assistant?.split(/\s+/).length || 0,
+            has_json:        ex.assistant?.includes('{') || false,
+            source_verified: false,
+            within_limit:    true,
+            created_at:      new Date().toISOString(),
+            source_file:     file.name,
+          }
+        }
+      })
+
+      const updated = [...dataset, ...newEntries]
+      setDataset(updated)
+      persist(updated)
+      toast.success(`${data.total} exemplos importados de "${file.name}"!`)
+    } catch (e) {
+      toast.error('Erro: ' + e.message)
+    } finally {
+      setImporting(null)
+    }
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────
   const removeExample = (id) => {
     const updated = dataset.filter(e => e.id !== id)
     setDataset(updated)
@@ -148,106 +216,8 @@ export default function Treinamento() {
     localStorage.removeItem('jurema_dataset')
     toast.success('Dataset limpo!')
   }
-  const importFile = async (file) => {
-    if (!file) return
-    setImporting(file.name)
 
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const res = await fetch('/api/admin/import', {
-        method: 'POST',
-        body: formData
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
-
-      const SYSTEM_PROMPT_LOCAL = SYSTEM_PROMPT // usa o SYSTEM_PROMPT já definido no arquivo
-
-      const newEntries = data.examples.map(ex => {
-        // Se já vier no formato Ollama { _raw: { messages: [...] } }
-        if (ex._raw?.messages) {
-          return {
-            id:       Date.now() + Math.random(),
-            category: ex.category || 'outro',
-            messages: ex._raw.messages,
-            meta: {
-              word_count:      ex._raw.messages[2]?.content?.split(/\s+/).length || 0,
-              has_json:        ex._raw.messages[2]?.content?.includes('{') || false,
-              source_verified: false,
-              within_limit:    true,
-              created_at:      new Date().toISOString(),
-              source_file:     file.name,
-            }
-          }
-        }
-        // Formato user/assistant
-        return {
-          id:       Date.now() + Math.random(),
-          category: ex.category || 'outro',
-          messages: [
-            { role: 'system',    content: SYSTEM_PROMPT_LOCAL },
-            { role: 'user',      content: ex.user },
-            { role: 'assistant', content: ex.assistant },
-          ],
-          meta: {
-            word_count:      ex.assistant?.split(/\s+/).length || 0,
-            has_json:        ex.assistant?.includes('{') || false,
-            source_verified: false,
-            within_limit:    true,
-            created_at:      new Date().toISOString(),
-            source_file:     file.name,
-          }
-        }
-      })
-
-      const updated = [...dataset, ...newEntries]
-      setDataset(updated)
-      persist(updated)
-      toast.success(`Arquivo importado! +${newEntries.length} exemplos`)
-    } catch (e) {
-      toast.error('Erro ao importar: ' + e.message)
-    } finally {
-      setImporting(null)
-    }
-  }
-  const importSource = async (source) => {
-    setImporting(source)
-    try {
-      const res = await fetch('/api/admin/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source })
-      })
-      const { examples, total } = await res.json()  
-      const newEntries = examples.map(ex => ({
-        id: Date.now() + Math.random(),
-        category: ex.category,
-        messages: [
-          { role: 'system',    content: SYSTEM_PROMPT },
-          { role: 'user',      content: ex.user },
-          { role: 'assistant', content: ex.assistant },
-        ],
-        meta: {
-          word_count:      ex.assistant.split(/\s+/).length,
-          has_json:        ex.assistant.includes('{'),
-          source_verified: source === 'ncm',
-          within_limit:    true,
-          created_at:      new Date().toISOString(),
-          source_file:     source,
-        }
-      }))  
-      const updated = [...dataset, ...newEntries]
-      setDataset(updated)
-      persist(updated)
-      toast.success(`${total} exemplos importados de ${source.toUpperCase()}!`)
-    } catch (e) {
-      toast.error('Erro ao importar: ' + e.message)
-    } finally {
-      setImporting(null)
-    }
-  }
+  // ── EXPORT ───────────────────────────────────────────────
   const exportJSONL = async () => {
     if (dataset.length === 0) { toast.error('Dataset vazio!'); return }
     try {
@@ -259,7 +229,6 @@ export default function Treinamento() {
         return
       }
     } catch {}
-    // fallback localStorage
     const content = dataset.map(ex =>
       JSON.stringify({ messages: ex.messages })
     ).join('\n')
@@ -283,8 +252,8 @@ export default function Treinamento() {
     a.click()
   }
 
-  const filtered = filterCat === 'all' ? dataset
-    : dataset.filter(e => e.category === filterCat)
+  // ── RENDER ───────────────────────────────────────────────
+  const filtered = filterCat === 'all' ? dataset : dataset.filter(e => e.category === filterCat)
 
   const stats = CATEGORIES.map(c => ({
     ...c,
@@ -311,15 +280,13 @@ export default function Treinamento() {
               <p className="text-xs text-slate-500">Fine-tune Dataset Builder · Next.js + Supabase</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-              {dataset.length} exemplos
-            </span>
-          </div>
+          <span className="bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+            {dataset.length} exemplos
+          </span>
         </header>
 
         {/* STATS BAR */}
-        <div className="border-b border-slate-800 bg-slate-900/50 px-6 py-3 flex gap-4 overflow-x-auto">
+        <div className="border-b border-slate-800 bg-slate-900/50 px-6 py-3 flex gap-3 overflow-x-auto">
           {stats.map(c => (
             <button
               key={c.id}
@@ -334,10 +301,7 @@ export default function Treinamento() {
             </button>
           ))}
           {filterCat !== 'all' && (
-            <button
-              onClick={() => setFilterCat('all')}
-              className="text-xs text-slate-500 hover:text-slate-300 underline"
-            >
+            <button onClick={() => setFilterCat('all')} className="text-xs text-slate-500 hover:text-slate-300 underline ml-1">
               ver todos
             </button>
           )}
@@ -345,7 +309,7 @@ export default function Treinamento() {
 
         <div className="flex flex-1 overflow-hidden">
 
-          {/* FORMULÁRIO */}
+          {/* ── FORMULÁRIO ── */}
           <div className="w-1/2 border-r border-slate-800 p-6 overflow-y-auto flex flex-col gap-5">
 
             {/* Categoria */}
@@ -366,65 +330,62 @@ export default function Treinamento() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Drop Zone de Importação */}
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Upload size={12} /> Importar Arquivo
+              </p>
               <div
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setDragOver(true)
-                }}
+                onDragOver={e  => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
+                onDrop={e => {
                   e.preventDefault()
                   setDragOver(false)
-                  if (e.dataTransfer.files.length > 0) {
-                    importFile(e.dataTransfer.files[0])
-                  }
+                  const file = e.dataTransfer.files[0]
+                  if (file) importFile(file)
                 }}
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
-                  dragOver ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/50'
+                onClick={() => document.getElementById('file-upload').click()}
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer ${
+                  dragOver
+                    ? 'border-sky-500 bg-sky-950/30'
+                    : 'border-slate-700 hover:border-slate-500 bg-slate-900/30'
                 }`}
               >
-                <p className="text-xs text-slate-500 mb-2">ou arraste um arquivo aqui</p>
-                <label className="text-xs text-sky-400 cursor-pointer hover:underline">
-                  Clique para selecionar arquivo
-                  <input
-                    type="file"
-                    accept=".json,.jsonl"
-                    onChange={(e) => importFile(e.target.files?.[0])}
-                    className="hidden"
-                  />
-                </label>
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".json,.jsonl,.csv,.md,.txt,.html,.xml"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = '' }}
+                />
+                {importing ? (
+                  <div className="flex items-center justify-center gap-2 text-sky-400">
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span className="text-sm">Importando {importing}...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={24} className="mx-auto text-slate-500 mb-2" />
+                    <p className="text-sm font-medium text-slate-300">
+                      Arraste um arquivo ou clique para selecionar
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      JSON · JSONL · CSV · MD · TXT · HTML · XML — até 50MB
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-            {/* IMPORTADOR */}
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <Download size={12} /> Importar do Repositório
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'ncm',   label: '🏷️ Tabela NCM',  desc: '~200 NCMs' },
-                  { id: 'lc214', label: '📋 LC 214/2025', desc: '~100 artigos' },
-                  { id: 'ec132', label: '📋 EC 132/2023', desc: '~50 artigos' },
-                  { id: 'lc227', label: '📋 LC 227/2026', desc: '~80 artigos' },
-                ].map(src => (
-                  <button
-                    key={src.id}
-                    onClick={() => importSource(src.id)}
-                    disabled={importing === src.id}
-                    className="flex flex-col items-start p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg transition-colors text-left"
-                  >
-                    <span className="text-xs font-semibold text-slate-200">{src.label}</span>
-                    <span className="text-xs text-slate-500">{src.desc}</span>
-                    {importing === src.id && (
-                      <span className="text-xs text-sky-400 mt-1 flex items-center gap-1">
-                        <RefreshCw size={10} className="animate-spin" /> importando...
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
+
+            {/* Divisor */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-800" />
+              <span className="text-xs text-slate-600">ou adicionar manualmente</span>
+              <div className="flex-1 h-px bg-slate-800" />
             </div>
-               
+
             {/* Pergunta */}
             <div>
               <label className="text-xs text-slate-400 mb-2 block">Pergunta do usuário</label>
@@ -447,18 +408,11 @@ export default function Treinamento() {
                 value={answer}
                 onChange={e => setAnswer(e.target.value)}
                 rows={8}
-                placeholder='```json
-{
-  "ncm": "7318.15.00",
-  ...
-}
-```'
+                placeholder={'```json\n{\n  "ncm": "7318.15.00",\n  ...\n}\n```'}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-500 resize-none transition-colors"
               />
               {wordCount > 300 && (
-                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                  <XCircle size={12} /> Acima do limite de 300 palavras
-                </p>
+                <p className="text-xs text-red-400 mt-1">⚠️ Acima do limite de 300 palavras</p>
               )}
             </div>
 
@@ -509,7 +463,7 @@ export default function Treinamento() {
             </div>
           </div>
 
-          {/* LISTA */}
+          {/* ── LISTA ── */}
           <div className="w-1/2 flex flex-col bg-slate-950">
 
             {/* Export bar */}
@@ -534,7 +488,7 @@ export default function Treinamento() {
               </button>
             </div>
 
-            {/* Lista de exemplos */}
+            {/* Lista */}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-3">
@@ -558,7 +512,7 @@ export default function Treinamento() {
                           {ex.messages[2].content.substring(0, 90)}...
                         </p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE_COLORS[ex.category]}`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE_COLORS[ex.category] || BADGE_COLORS.outro}`}>
                             {CATEGORIES.find(c => c.id === ex.category)?.icon} {ex.category}
                           </span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
@@ -569,6 +523,11 @@ export default function Treinamento() {
                           )}
                           {ex.meta.source_verified && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-400">✓ Verificado</span>
+                          )}
+                          {ex.meta.source_file && ex.meta.source_file !== 'manual' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 truncate max-w-24">
+                              📎 {ex.meta.source_file}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -609,7 +568,7 @@ export default function Treinamento() {
               <h3 className="text-sky-400 font-semibold flex items-center gap-2">
                 <FileJson size={16} /> Preview — Formato Ollama JSONL
               </h3>
-              <button onClick={() => setPreview(null)} className="text-slate-500 hover:text-slate-300">✕</button>
+              <button onClick={() => setPreview(null)} className="text-slate-500 hover:text-slate-300 text-lg">✕</button>
             </div>
             <pre className="bg-slate-950 text-sky-300 text-xs p-4 rounded-xl overflow-x-auto whitespace-pre-wrap font-mono">
               {JSON.stringify({ messages: preview.messages }, null, 2)}
@@ -618,5 +577,5 @@ export default function Treinamento() {
         </div>
       )}
     </>
- )
+  )
 }
