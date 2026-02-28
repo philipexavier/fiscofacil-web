@@ -1,9 +1,8 @@
 import dynamic from 'next/dynamic'
 
-// Desativa SSR — componente roda só no browser
 const AdminMeilisearch = dynamic(
   () => import('../../components/AdminMeilisearch'),
-  { ssr: false }
+  { ssr: false, loading: () => <p style={{color:'white',padding:'2rem'}}>Carregando...</p> }
 )
 
 export default function Page() {
