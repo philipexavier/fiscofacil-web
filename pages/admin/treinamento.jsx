@@ -46,6 +46,7 @@ export default function Treinamento() {
   const [preview, setPreview]       = useState(null)
   const [saving, setSaving]         = useState(false)
   const [filterCat, setFilterCat]   = useState('all')
+  const [importing, setImporting]   = useState(null)
 
   // Carregar do localStorage
   useEffect(() => {
@@ -145,7 +146,42 @@ export default function Treinamento() {
     localStorage.removeItem('jurema_dataset')
     toast.success('Dataset limpo!')
   }
-
+  const importSource = async (source) => {
+    setImporting(source)
+    try {
+      const res = await fetch('/api/admin/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source })
+      })
+      const { examples, total } = await res.json()  
+      const newEntries = examples.map(ex => ({
+        id: Date.now() + Math.random(),
+        category: ex.category,
+        messages: [
+          { role: 'system',    content: SYSTEM_PROMPT },
+          { role: 'user',      content: ex.user },
+          { role: 'assistant', content: ex.assistant },
+        ],
+        meta: {
+          word_count:      ex.assistant.split(/\s+/).length,
+          has_json:        ex.assistant.includes('{'),
+          source_verified: source === 'ncm',
+          within_limit:    true,
+          created_at:      new Date().toISOString(),
+          source_file:     source,
+        }
+      }))  
+      const updated = [...dataset, ...newEntries]
+      setDataset(updated)
+      persist(updated)
+      toast.success(`${total} exemplos importados de ${source.toUpperCase()}!`)
+    } catch (e) {
+      toast.error('Erro ao importar: ' + e.message)
+    } finally {
+      setImporting(null)
+    }
+  }
   const exportJSONL = async () => {
     if (dataset.length === 0) { toast.error('Dataset vazio!'); return }
     try {
@@ -264,8 +300,38 @@ export default function Treinamento() {
                   </button>
                 ))}
               </div>
+              
             </div>
-
+            {/* IMPORTADOR */}
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Download size={12} /> Importar do Repositório
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'ncm',   label: '🏷️ Tabela NCM',  desc: '~200 NCMs' },
+                  { id: 'lc214', label: '📋 LC 214/2025', desc: '~100 artigos' },
+                  { id: 'ec132', label: '📋 EC 132/2023', desc: '~50 artigos' },
+                  { id: 'lc227', label: '📋 LC 227/2026', desc: '~80 artigos' },
+                ].map(src => (
+                  <button
+                    key={src.id}
+                    onClick={() => importSource(src.id)}
+                    disabled={importing === src.id}
+                    className="flex flex-col items-start p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg transition-colors text-left"
+                  >
+                    <span className="text-xs font-semibold text-slate-200">{src.label}</span>
+                    <span className="text-xs text-slate-500">{src.desc}</span>
+                    {importing === src.id && (
+                      <span className="text-xs text-sky-400 mt-1 flex items-center gap-1">
+                        <RefreshCw size={10} className="animate-spin" /> importando...
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+               
             {/* Pergunta */}
             <div>
               <label className="text-xs text-slate-400 mb-2 block">Pergunta do usuário</label>
