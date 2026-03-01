@@ -1,12 +1,16 @@
+// pages/api/chat.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const { mensagem, historico = [] } = req.body
   if (!mensagem) return res.status(400).json({ erro: 'Mensagem obrigatória.' })
 
-  const JUREMA_URL = process.env.JUREMA_URL      || 'https://fiscofacil-ollama-web.9pt9es.easypanel.host'
-  const MODELO     = process.env.JUREMA_MODEL    || 'qwen2:1.5b'
-  const API_KEY    = process.env.OPENWEBUI_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MDhiZjU4LTc4N2EtNGMzMC04Mjc0LTg0NDI4ZTg5YzUzNSIsImV4cCI6MTc3NDczNDgzNywianRpIjoiYjcyMDBmNDktMjJiZi00YTNmLWJkYTAtMDQ3ZmFmNjg4MzBjIn0.Djm3PSj0zBTa0kHk7qwX3zHMQ5nxnJrOWTRGFjiL75g'
+  const JUREMA_URL = process.env.JUREMA_URL || 'https://fiscofacil-ollama-web.9pt9es.easypanel.host'
+  const MODELO = process.env.JUREMA_MODEL || 'qwen2:1.5b'
+  const API_KEY = process.env.OPENWEBUI_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MDhiZjU4LTc4N2EtNGMzMC04Mjc0LTg0NDI4ZTg5YzUzNSIsImV4cCI6MTc3NDczNDgzNywianRpIjoiYjcyMDBmNDktMjJiZi00YTNmLWJkYTAtMDQ3ZmFmNjg4MzBjIn0.Djm3PSj0zBTa0kHk7qwX3zHMQ5nxnJrOWTRGFjiL75g' // substitua por uma chave real ou use variáveis de ambiente
+  if (!API_KEY) {
+    return res.status(500).json({ erro: 'OPENWEBUI_API_KEY não configurada.' })
+  }
 
   const sistema = `Você é a Jurema, assistente especialista em reforma tributária brasileira.
 Seu foco é a transição do sistema antigo (ICMS, ISS, PIS, COFINS) para o novo (IBS, CBS, IS)
@@ -17,25 +21,25 @@ Limite suas respostas a no máximo 300 palavras.`
   const mensagens = [
     { role: 'system', content: sistema },
     ...historico,
-    { role: 'user',   content: mensagem },
+    { role: 'user', content: mensagem },
   ]
 
   try {
-    res.setHeader('Content-Type',  'text/event-stream')
+    res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection',    'keep-alive')
+    res.setHeader('Connection', 'keep-alive')
 
     const response = await fetch(`${JUREMA_URL}/api/chat/completions`, {
-      method:  'POST',
+      method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        model:    MODELO,
+        model: MODELO,
         messages: mensagens,
-        stream:   true,                    // ← streaming ativo
-        options:  { temperature: 0.3 },
+        stream: true,
+        options: { temperature: 0.3 },
       }),
     })
 
@@ -44,7 +48,7 @@ Limite suas respostas a no máximo 300 palavras.`
       throw new Error(`OpenWebUI ${response.status}: ${txt}`)
     }
 
-    const reader  = response.body.getReader()
+    const reader = response.body.getReader()
     const decoder = new TextDecoder()
 
     while (true) {
@@ -55,22 +59,22 @@ Limite suas respostas a no máximo 300 palavras.`
       const lines = chunk.split('\n').filter(Boolean)
 
       for (const line of lines) {
-        // OpenWebUI envia "data: {...}" no formato SSE
         const raw = line.startsWith('data: ') ? line.slice(6) : line
 
         if (raw === '[DONE]') {
-          res.write(`data: [DONE]\n\n`)
+          res.write('data: [DONE]\n\n')
           continue
         }
 
         try {
           const json = JSON.parse(raw)
-          // Formato OpenAI: choices[0].delta.content
           const token = json.choices?.[0]?.delta?.content
           if (token) {
             res.write(`data: ${JSON.stringify({ token })}\n\n`)
           }
-        } catch {}
+        } catch {
+          // ignora linhas que não são JSON
+        }
       }
     }
 

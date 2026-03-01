@@ -1,14 +1,16 @@
 import { useState } from 'react'
+import { useRouter } from 'next/router'
 import { Mail, Lock, LogIn, LogOut, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
-import { supabase } from '../lib/supabase' // caminho que você mostrou
+import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [loading, setLoading] = useState(false)
   const [usuario, setUsuario] = useState(null)
+  const router = useRouter()
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -22,16 +24,18 @@ export default function Login() {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
-      }) // [web:103][web:112]
+      })
 
       if (error) {
-        // mensagem genérica (Supabase não diferencia usuário inexistente / senha errada)
         toast.error(error.message || 'Falha ao entrar. Verifique as credenciais.')
         return
       }
 
       setUsuario(data.user)
       toast.success('Login realizado com sucesso!')
+
+      // redireciona para a área protegida (ajuste o path se necessário)
+      router.push('/chat') // ou '/area-do-contador'
     } catch (err) {
       toast.error('Erro inesperado ao autenticar.')
     } finally {
@@ -42,7 +46,7 @@ export default function Login() {
   async function handleLogout() {
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signOut() // [web:108][web:111]
+      const { error } = await supabase.auth.signOut()
       if (error) {
         toast.error('Erro ao sair.')
         return
@@ -57,6 +61,7 @@ export default function Login() {
       setLoading(false)
     }
   }
+
   console.log('SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL)
 
   return (
@@ -85,7 +90,7 @@ export default function Login() {
           Use o e‑mail e senha cadastrados no Supabase Authentication.
         </p>
 
-        {/* Se já estiver autenticado, mostra usuário + botão sair */}
+        {/* Sessão ativa */}
         {usuario && (
           <div className="mb-4 bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-3 text-xs text-emerald-100">
             <p className="font-semibold text-emerald-300">
@@ -95,7 +100,7 @@ export default function Login() {
           </div>
         )}
 
-        {/* Formulário de login */}
+        {/* Formulário */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs text-slate-300 mb-1">
@@ -139,7 +144,7 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Rodapé com botão sair se logado */}
+        {/* Botão sair */}
         {usuario && (
           <button
             onClick={handleLogout}
@@ -152,7 +157,7 @@ export default function Login() {
         )}
 
         <p className="mt-4 text-[11px] text-slate-500">
-          Dica: para testar, crie um usuário em <span className="font-mono">Authentication → Users</span> no painel do Supabase e use o mesmo e‑mail/senha aqui. [web:84][web:85]
+          Dica: crie o usuário em <span className="font-mono">Authentication → Users</span> no painel do Supabase e use o mesmo e‑mail/senha aqui.
         </p>
       </div>
     </div>
