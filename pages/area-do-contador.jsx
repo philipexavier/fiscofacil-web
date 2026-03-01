@@ -1,20 +1,39 @@
 // pages/area-do-contador.jsx
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { Send, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Activity,
+  FileText,
+  MessageCircle,
+  Database,
+  ClipboardList,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import UserMenu from '../components/UserMenu'
 
-export default function ChatPage() {
+export default function AreaDoContador() {
   const router = useRouter()
   const [sessionChecked, setSessionChecked] = useState(false)
-  const [mensagem, setMensagem] = useState('')
-  const [historico, setHistorico] = useState([]) // {role, content}
-  const [loading, setLoading] = useState(false)
   const [usuario, setUsuario] = useState(null)
-  const bottomRef = useRef(null)
 
-  // Protege a rota
+  // mocks provisórios – depois você pode puxar isso de APIs/Meilisearch
+  const itensRiscoMock = [
+    { ncm: '2101.11.10', desc: 'Extratos de café', risco: 'ALTO', impacto: '+3,5 p.p.' },
+    { ncm: '3004.90.99', desc: 'Medicamentos diversos', risco: 'MÉDIO', impacto: '-1,2 p.p.' },
+    { ncm: '8501.10.29', desc: 'Motores elétricos', risco: 'ALTO', impacto: '+2,0 p.p.' },
+  ]
+
+  const cronogramaMock = [
+    { ano: '2026', evento: 'Início da transição, testes de IBS/CBS em alíquota reduzida.' },
+    { ano: '2027–2029', evento: 'Aumento gradual da participação do IBS/CBS e redução dos tributos atuais.' },
+    { ano: '2030–2032', evento: 'Fase final de substituição dos tributos antigos.' },
+    { ano: '2033', evento: 'Predomínio do IBS/CBS e extinção de PIS, COFINS, ICMS e ISS.' },
+  ]
+
   useEffect(() => {
     async function checkSession() {
       const { data } = await supabase.auth.getSession()
@@ -28,181 +47,164 @@ export default function ChatPage() {
     checkSession()
   }, [router])
 
-  // Scroll automático
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [historico, loading])
-
-  async function handleEnviar(e) {
-    e?.preventDefault()
-    if (!mensagem.trim() || loading) return
-
-    const texto = mensagem.trim()
-    setMensagem('')
-
-    const novaPergunta = { role: 'user', content: texto }
-
-    // adiciona pergunta + placeholder do assistente
-    const historicoComPergunta = [...historico, novaPergunta, { role: 'assistant', content: '' }]
-    const idxResposta = historicoComPergunta.length - 1
-
-    setHistorico(historicoComPergunta)
-    setLoading(true)
-
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mensagem: texto,
-        historico, // histórico anterior, sem a pergunta atual
-      }),
-    })
-
-    if (!res.ok || !res.body) {
-      setLoading(false)
-      return
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let respostaAcumulada = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      const chunk = decoder.decode(value)
-      const linhas = chunk.split('\n').filter(Boolean)
-
-      for (const linha of linhas) {
-        if (!linha.startsWith('data: ')) continue
-        const raw = linha.slice(6)
-        if (raw === '[DONE]') continue
-
-        try {
-          const json = JSON.parse(raw)
-          if (json.erro) {
-            setLoading(false)
-            return
-          }
-          if (json.token) {
-            respostaAcumulada += json.token
-            setHistorico((prev) => {
-              const copia = [...prev]
-              if (copia[idxResposta]) {
-                copia[idxResposta] = {
-                  role: 'assistant',
-                  content: respostaAcumulada,
-                }
-              }
-              return copia
-            })
-          }
-        } catch {
-          // ignora linhas quebradas
-        }
-      }
-    }
-
-    setLoading(false)
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleEnviar()
-    }
-  }
-
   if (!sessionChecked) return null
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col px-4 pb-10">
       {/* Topo */}
-      <header className="border-b border-slate-800 px-4 md:px-8 py-4 flex items-center justify-between">
+      <header className="w-full max-w-6xl mx-auto mt-6 mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 border border-slate-700 text-slate-300 hover:text-sky-300 hover:border-sky-500"
           >
             <ArrowLeft size={16} />
           </Link>
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide">
-              FiscoFácil · Jurema IA
-            </p>
-            <h1 className="text-sm md:text-base font-semibold text-slate-100">
-              Chat tributário sobre Reforma 2026–2033
-            </h1>
+          <Image
+            src="/logo.png"
+            alt="FiscoFácil"
+            width={130}
+            height={40}
+            className="object-contain"
+            priority
+          />
+          <div className="border-l border-slate-700 pl-3">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Painel do Contador</p>
+            <p className="text-xs font-semibold text-sky-400">Inteligência Tributária</p>
           </div>
         </div>
-        {usuario && (
-          <span className="text-[11px] text-slate-500 max-w-xs truncate">
-            Logado como {usuario.email}
-          </span>
-        )}
+        {usuario && <UserMenu usuario={usuario} />}
       </header>
 
-      {/* Corpo do chat */}
-      <main className="flex-1 flex flex-col px-4 md:px-8 py-4">
-        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-          {historico.length === 0 && (
-            <div className="text-center text-slate-500 text-xs mt-10">
-              Faça perguntas sobre NCM, IBS, CBS, IS e transição 2026–2033.
-            </div>
-          )}
-
-          {historico.map((msg, i) => (
-            <div
-              key={i}
-              className={`max-w-2xl ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
-            >
-              <div
-                className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-sky-500 text-slate-950 rounded-br-sm'
-                    : 'bg-slate-900 text-slate-100 rounded-bl-sm border border-slate-800'
-                }`}
-              >
-                {msg.content}
+      <main className="w-full max-w-6xl mx-auto space-y-6">
+        {/* Atalhos principais */}
+        <section className="grid md:grid-cols-3 gap-4">
+          <Link href="/area-do-contador">
+            <div className="cursor-pointer bg-slate-900 border border-slate-800 rounded-2xl p-4 hover:border-sky-500/70 transition">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageCircle size={18} className="text-sky-400" />
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Chat tributário (NCM → IBS/CBS)
+                </h2>
               </div>
+              <p className="text-xs text-slate-400">
+                Converse com a Jurema sobre enquadramento, riscos e impactos da Reforma por NCM e regime.
+              </p>
             </div>
-          ))}
+          </Link>
 
-          {loading && (
-            <div className="max-w-2xl mr-auto">
-              <div className="px-3 py-2 rounded-2xl text-xs text-slate-400 bg-slate-900 border border-slate-800 rounded-bl-sm">
-                Jurema está pensando...
+          <Link href="/busca-em-massa">
+            <div className="cursor-pointer bg-slate-900 border border-slate-800 rounded-2xl p-4 hover:border-sky-500/70 transition">
+              <div className="flex items-center gap-2 mb-2">
+                <ClipboardList size={18} className="text-emerald-400" />
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Revisão de cadastro em lote
+                </h2>
               </div>
+              <p className="text-xs text-slate-400">
+                Suba planilhas de produtos, receba NCM sugerido, risco fiscal e confiança para priorizar o retrabalho.
+              </p>
             </div>
-          )}
+          </Link>
 
-          <div ref={bottomRef} />
-        </div>
+          <Link href="/admin/meilisearch">
+            <div className="cursor-pointer bg-slate-900 border border-slate-800 rounded-2xl p-4 hover:border-sky-500/70 transition">
+              <div className="flex items-center gap-2 mb-2">
+                <Database size={18} className="text-amber-400" />
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Índice NCM (Meilisearch)
+                </h2>
+              </div>
+              <p className="text-xs text-slate-400">
+                Atualize a Tabela NCM oficial no motor de busca para manter consultas rápidas e consistentes.
+              </p>
+            </div>
+          </Link>
+        </section>
 
-        {/* Input */}
-        <form onSubmit={handleEnviar} className="max-w-3xl mx-auto w-full">
-          <div className="flex items-end gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-3 py-2">
-            <textarea
-              rows={1}
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Pergunte algo como: 'Como muda a tributação de serviços de TI no IBS/CBS em 2027?'"
-              className="flex-1 bg-transparent outline-none text-sm text-slate-100 placeholder:text-slate-500 resize-none"
-            />
-            <button
-              type="submit"
-              disabled={loading || !mensagem.trim()}
-              className="inline-flex items-center justify-center bg-sky-500 text-slate-950 rounded-xl px-3 py-2 text-xs font-semibold hover:bg-sky-400 disabled:opacity-40"
-            >
-              <Send size={14} />
-            </button>
+        {/* Radar de risco por NCM */}
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={18} className="text-amber-400" />
+              <h2 className="text-sm font-semibold text-slate-100">
+                Radar de NCMs críticos para a Reforma
+              </h2>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              Use a busca em massa para atualizar esta lista com dados reais.
+            </span>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">
-            A Jurema responde com foco na Reforma Tributária do consumo (LC 214/2025).
-          </p>
-        </form>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="text-[11px] uppercase text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th className="py-2 pr-3">NCM</th>
+                  <th className="py-2 pr-3">Descrição</th>
+                  <th className="py-2 pr-3">Risco</th>
+                  <th className="py-2 pr-3">Impacto IBS/CBS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itensRiscoMock.map((item) => (
+                  <tr key={item.ncm} className="border-b border-slate-900">
+                    <td className="py-2 pr-3 font-mono text-sky-300">{item.ncm}</td>
+                    <td className="py-2 pr-3 text-slate-100">{item.desc}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          item.risco === 'ALTO'
+                            ? 'bg-rose-500/15 text-rose-300 border border-rose-500/40'
+                            : 'bg-amber-500/15 text-amber-300 border border-amber-500/40'
+                        }`}
+                      >
+                        {item.risco}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-100">{item.impacto}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Cronograma de transição */}
+        <section className="grid md:grid-cols-2 gap-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity size={18} className="text-emerald-400" />
+              <h2 className="text-sm font-semibold text-slate-100">
+                Cronograma da Reforma 2026–2033
+              </h2>
+            </div>
+            <ul className="space-y-2 text-xs text-slate-200">
+              {cronogramaMock.map((etapa) => (
+                <li key={etapa.ano} className="flex gap-3">
+                  <span className="font-mono text-[11px] bg-slate-950 border border-slate-700 px-2 py-1 rounded flex-shrink-0">
+                    {etapa.ano}
+                  </span>
+                  <p>{etapa.evento}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText size={18} className="text-sky-400" />
+              <h2 className="text-sm font-semibold text-slate-100">
+                Próximos passos para o escritório
+              </h2>
+            </div>
+            <ul className="space-y-2 text-xs text-slate-200">
+              <li>• Rodar a <strong>busca em massa</strong> com os principais clientes e mapear NCMs de risco.</li>
+              <li>• Usar o <strong>chat da Jurema</strong> para validar NCM e tributação em casos duvidosos.</li>
+              <li>• Ajustar cadastros e regras fiscais no ERP à luz do cronograma de transição.</li>
+              <li>• Manter o índice do <strong>Meilisearch</strong> atualizado com a Tabela NCM vigente.</li>
+            </ul>
+          </div>
+        </section>
       </main>
     </div>
   )

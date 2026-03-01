@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import Image from 'next/image'
 import { Mail, Lock, LogIn, LogOut, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
@@ -82,17 +83,27 @@ export default function Login() {
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
         {/* Topo */}
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-sky-300"
-          >
-            <ArrowLeft size={14} />
-            Voltar
-          </Link>
-          <span className="text-[11px] text-slate-500">
-            Área do Contador · Supabase Auth
-          </span>
+        <div className="flex flex-col items-center mb-6">
+          <Image
+            src="/logo.png"
+            alt="FiscoFácil"
+            width={160}
+            height={48}
+            className="object-contain mb-3"
+            priority
+          />
+          <div className="flex items-center justify-between w-full">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-sky-300"
+            >
+              <ArrowLeft size={14} />
+              Voltar
+            </Link>
+            <span className="text-[11px] text-slate-500">
+              Área do Contador · Supabase Auth
+            </span>
+          </div>
         </div>
 
         <h1 className="text-2xl font-semibold text-sky-300 mb-1">

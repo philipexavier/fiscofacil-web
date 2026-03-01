@@ -2,8 +2,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 import { MessageCircle, Database, Settings } from 'lucide-react'
+import UserMenu from '../components/UserMenu'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -27,20 +29,22 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4">
-      <header className="w-full max-w-3xl mt-12 mb-8 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide">
-            FiscoFácil · Painel do Contador
-          </p>
-          <h1 className="text-2xl font-semibold text-sky-300">
-            Escolha a área que deseja acessar
-          </h1>
+      <header className="w-full max-w-3xl mt-10 mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Image
+            src="/logo.png"
+            alt="FiscoFácil"
+            width={180}
+            height={54}
+            className="object-contain"
+            priority
+          />
+          <div className="border-l border-slate-700 pl-4">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Painel do Contador</p>
+            <p className="text-xs font-semibold text-sky-400">Inteligência Tributária</p>
+          </div>
         </div>
-        {usuario && (
-          <span className="text-[11px] text-slate-500 max-w-xs truncate">
-            Logado como {usuario.email}
-          </span>
-        )}
+        {usuario && <UserMenu usuario={usuario} />}
       </header>
 
       <main className="w-full max-w-3xl grid gap-4 md:grid-cols-3">

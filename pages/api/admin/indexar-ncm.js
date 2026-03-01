@@ -7,7 +7,7 @@ export const config = {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
+  if (req.method !== 'POST' && req.method !== 'DELETE') return res.status(405).end()
 
   const { authorization } = req.headers
   if (authorization !== `Bearer ${ADMIN_SECRET}`) {
@@ -27,6 +27,19 @@ export default async function handler(req, res) {
 
     try { await client.createIndex('ncm', { primaryKey: 'id' }) } catch {}
     const index = client.index('ncm')
+
+    // DELETE: apaga tudo ou um documento
+    if (req.method === 'DELETE') {
+      const { id } = req.query
+      if (id !== undefined) {
+        await index.deleteDocument(parseInt(id, 10))
+        return res.status(200).json({ sucesso: true, deletado: parseInt(id, 10) })
+      }
+      await index.deleteAllDocuments()
+      return res.status(200).json({ sucesso: true, mensagem: 'Índice limpo.' })
+    }
+
+    // POST: indexar
     if (resetar) await index.deleteAllDocuments()
 
     await index.updateSearchableAttributes(['descricao', 'codigo', 'descricao_limpa'])

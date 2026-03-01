@@ -1,7 +1,8 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
-import { Send, Loader2, Trash2, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { Send, Loader2, Trash2, Sparkles, ArrowLeft } from 'lucide-react'
 
 export default function JuremaChat() {
   const [mensagem, setMensagem] = useState('')
@@ -113,6 +114,13 @@ export default function JuremaChat() {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
         <header className="border-b border-slate-800 bg-slate-900 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-sky-300 mr-2"
+            >
+              <ArrowLeft size={14} />
+              Voltar
+            </Link>
             <span className="text-2xl">🧾</span>
             <div>
               <h1 className="text-lg font-bold text-sky-400">
