@@ -35,7 +35,7 @@ export default function Login() {
       toast.success('Login realizado com sucesso!')
 
       // redireciona para a área protegida (ajuste o path se necessário)
-      router.push('/chat') // ou '/area-do-contador'
+      router.push('/area-do-contador') // ou '/area-do-contador'
     } catch (err) {
       toast.error('Erro inesperado ao autenticar.')
     } finally {
