@@ -121,7 +121,6 @@ export default function Classificar() {
                 onChange={e => setRegime(e.target.value)}
                 className="border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none focus:border-blue-400"
               >
-                <option>Chat</option>
                 <option>Simples Nacional</option>
                 <option>Lucro Presumido</option>
                 <option>Lucro Real</option>
