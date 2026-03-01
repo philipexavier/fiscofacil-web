@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Mail, Lock, LogIn, LogOut, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
-import { supabase } from '../supabase' // caminho que você mostrou
+import { supabase } from '../lib/supabase' // caminho que você mostrou
 
 export default function Login() {
   const [email, setEmail] = useState('')
