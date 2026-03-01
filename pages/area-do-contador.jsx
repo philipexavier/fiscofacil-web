@@ -1,4 +1,4 @@
-// pages/chat.jsx
+// pages/area-do-contador.jsx
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { Send, ArrowLeft } from 'lucide-react'
@@ -11,12 +11,10 @@ export default function ChatPage() {
   const [mensagem, setMensagem] = useState('')
   const [historico, setHistorico] = useState([]) // {role, content}
   const [loading, setLoading] = useState(false)
-  const eventSourceRef = useRef(null)
-
-  // guarda usuário logado
   const [usuario, setUsuario] = useState(null)
+  const bottomRef = useRef(null)
 
-  // Protege a rota: se não tiver sessão, manda para /login
+  // Protege a rota
   useEffect(() => {
     async function checkSession() {
       const { data } = await supabase.auth.getSession()
@@ -30,39 +28,43 @@ export default function ChatPage() {
     checkSession()
   }, [router])
 
+  // Scroll automático
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [historico, loading])
+
   async function handleEnviar(e) {
     e?.preventDefault()
     if (!mensagem.trim() || loading) return
 
-    const novaPergunta = { role: 'user', content: mensagem.trim() }
-    const novoHistorico = [...historico, novaPergunta]
-
-    setHistorico(novoHistorico)
+    const texto = mensagem.trim()
     setMensagem('')
+
+    const novaPergunta = { role: 'user', content: texto }
+
+    // adiciona pergunta + placeholder do assistente
+    const historicoComPergunta = [...historico, novaPergunta, { role: 'assistant', content: '' }]
+    const idxResposta = historicoComPergunta.length - 1
+
+    setHistorico(historicoComPergunta)
     setLoading(true)
-
-    // adiciona mensagem vazia do assistente para ir preenchendo
-    setHistorico((prev) => [...prev, { role: 'assistant', content: '' }])
-
-    const idxResposta = novoHistorico.length // posição da resposta
 
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        mensagem: novaPergunta.content,
-        historico: historico, // sem a resposta ainda
+        mensagem: texto,
+        historico, // histórico anterior, sem a pergunta atual
       }),
     })
 
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       setLoading(false)
       return
     }
 
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
-
     let respostaAcumulada = ''
 
     while (true) {
@@ -87,20 +89,29 @@ export default function ChatPage() {
             respostaAcumulada += json.token
             setHistorico((prev) => {
               const copia = [...prev]
-              copia[idxResposta] = {
-                role: 'assistant',
-                content: respostaAcumulada,
+              if (copia[idxResposta]) {
+                copia[idxResposta] = {
+                  role: 'assistant',
+                  content: respostaAcumulada,
+                }
               }
               return copia
             })
           }
         } catch {
-          // ignora
+          // ignora linhas quebradas
         }
       }
     }
 
     setLoading(false)
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleEnviar()
+    }
   }
 
   if (!sessionChecked) return null
@@ -144,9 +155,7 @@ export default function ChatPage() {
           {historico.map((msg, i) => (
             <div
               key={i}
-              className={`max-w-2xl ${
-                msg.role === 'user' ? 'ml-auto' : 'mr-auto'
-              }`}
+              className={`max-w-2xl ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
             >
               <div
                 className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ${
@@ -159,6 +168,16 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
+
+          {loading && (
+            <div className="max-w-2xl mr-auto">
+              <div className="px-3 py-2 rounded-2xl text-xs text-slate-400 bg-slate-900 border border-slate-800 rounded-bl-sm">
+                Jurema está pensando...
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
         </div>
 
         {/* Input */}
@@ -168,6 +187,7 @@ export default function ChatPage() {
               rows={1}
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Pergunte algo como: 'Como muda a tributação de serviços de TI no IBS/CBS em 2027?'"
               className="flex-1 bg-transparent outline-none text-sm text-slate-100 placeholder:text-slate-500 resize-none"
             />

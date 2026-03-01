@@ -1,11 +1,12 @@
-// pages/api/jurema/chat.js
+// pages/api/chat.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const { mensagem, historico = [] } = req.body
   if (!mensagem) return res.status(400).json({ erro: 'Mensagem obrigatória.' })
 
-  const JUREMA_URL = process.env.JUREMA_URL || 'https://fiscofacil-ollama-web.9pt9es.easypanel.host'
+  const JUREMA_URL =
+    process.env.JUREMA_URL || 'https://fiscofacil-ollama-web.9pt9es.easypanel.host'
   const MODELO = process.env.JUREMA_MODEL || 'qwen2:1.5b'
   const API_KEY =
     process.env.OPENWEBUI_API_KEY ||
