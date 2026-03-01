@@ -1,4 +1,4 @@
-// pages/api/chat.js
+// pages/api/jurema/chat.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
@@ -7,7 +7,10 @@ export default async function handler(req, res) {
 
   const JUREMA_URL = process.env.JUREMA_URL || 'https://fiscofacil-ollama-web.9pt9es.easypanel.host'
   const MODELO = process.env.JUREMA_MODEL || 'qwen2:1.5b'
-  const API_KEY = process.env.OPENWEBUI_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MDhiZjU4LTc4N2EtNGMzMC04Mjc0LTg0NDI4ZTg5YzUzNSIsImV4cCI6MTc3NDczNDgzNywianRpIjoiYjcyMDBmNDktMjJiZi00YTNmLWJkYTAtMDQ3ZmFmNjg4MzBjIn0.Djm3PSj0zBTa0kHk7qwX3zHMQ5nxnJrOWTRGFjiL75g' // substitua por uma chave real ou use variáveis de ambiente
+  const API_KEY =
+    process.env.OPENWEBUI_API_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MDhiZjU4LTc4N2EtNGMzMC04Mjc0LTg0NDI4ZTg5YzUzNSIsImV4cCI6MTc3NDczNDgzNywianRpIjoiYjcyMDBmNDktMjJiZi00YTNmLWJkYTAtMDQ3ZmFmNjg4MzBjIn0.Djm3PSj0zBTa0kHk7qwX3zHMQ5nxnJrOWTRGFjiL75g'
+
   if (!API_KEY) {
     return res.status(500).json({ erro: 'OPENWEBUI_API_KEY não configurada.' })
   }

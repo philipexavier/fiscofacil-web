@@ -4,10 +4,10 @@ import Head from 'next/head'
 import { Send, Loader2, Trash2, Sparkles } from 'lucide-react'
 
 export default function JuremaChat() {
-  const [mensagem, setMensagem]   = useState('')
-  const [historico, setHistorico] = useState([]) // [{role:'user'|'assistant',content:''}]
+  const [mensagem, setMensagem] = useState('')
+  const [historico, setHistorico] = useState([]) // [{role, content}]
   const [carregando, setCarregando] = useState(false)
-  const [erro, setErro]             = useState(null)
+  const [erro, setErro] = useState(null)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -27,12 +27,12 @@ export default function JuremaChat() {
     setMensagem('')
     setErro(null)
 
-    const novoHistorico = [
-      ...historico,
-      { role: 'user',      content: novaMsg },
-      { role: 'assistant', content: '' },         // placeholder para stream
-    ]
-    setHistorico(novoHistorico)
+    // adiciona usuário + placeholder da Jurema
+    setHistorico((prev) => [
+      ...prev,
+      { role: 'user', content: novaMsg },
+      { role: 'assistant', content: '' },
+    ])
     setCarregando(true)
 
     try {
@@ -41,7 +41,7 @@ export default function JuremaChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mensagem: novaMsg,
-          historico: historico, // backend remonta com system prompt
+          historico, // histórico anterior (sem a pergunta atual)
         }),
       })
 
@@ -50,9 +50,9 @@ export default function JuremaChat() {
         throw new Error(texto || `Erro HTTP ${res.status}`)
       }
 
-      const reader  = res.body.getReader()
+      const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let   buffer  = ''
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -78,7 +78,7 @@ export default function JuremaChat() {
             if (payload.token) {
               setHistorico((prev) => {
                 const copia = [...prev]
-                const last  = copia[copia.length - 1]
+                const last = copia[copia.length - 1]
                 if (last?.role === 'assistant') {
                   last.content += payload.token
                 }
@@ -86,7 +86,7 @@ export default function JuremaChat() {
               })
             }
           } catch {
-            // ignora linhas quebradas
+            // ignora eventos quebrados
           }
         }
       }
@@ -94,6 +94,13 @@ export default function JuremaChat() {
       setErro(err.message)
     } finally {
       setCarregando(false)
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      enviar()
     }
   }
 
@@ -108,7 +115,9 @@ export default function JuremaChat() {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🧾</span>
             <div>
-              <h1 className="text-lg font-bold text-sky-400">Jurema Chat — Reforma Tributária 2026–2033</h1>
+              <h1 className="text-lg font-bold text-sky-400">
+                Jurema Chat — Reforma Tributária 2026–2033
+              </h1>
               <p className="text-xs text-slate-500">
                 Pergunte sobre IBS, CBS, IS, transição e impactos por NCM e regime tributário.
               </p>
@@ -129,9 +138,9 @@ export default function JuremaChat() {
               <div className="mt-10 text-center text-slate-500 text-sm space-y-2">
                 <p>Comece perguntando, por exemplo:</p>
                 <p className="font-mono text-xs text-slate-400">
-                  • Como fica a tributação de café solúvel na transição para IBS/CBS?<br />
-                  • Quais riscos tributários para NCM 2101.11 em 2027 no Lucro Presumido?<br />
-                  • Explique a transição 2026–2033 para serviços de transporte interestadual.
+                  • Como fica a tributação de café solúvel na transição para IBS/CBS?
+                  {'\n'}• Quais riscos tributários para NCM 2101.11 em 2027 no Lucro Presumido?
+                  {'\n'}• Explique a transição 2026–2033 para serviços de transporte interestadual.
                 </p>
               </div>
             )}
@@ -177,11 +186,15 @@ export default function JuremaChat() {
           </div>
 
           {/* Input */}
-          <form onSubmit={enviar} className="border border-slate-800 rounded-2xl bg-slate-900 p-3 flex items-end gap-3">
+          <form
+            onSubmit={enviar}
+            className="border border-slate-800 rounded-2xl bg-slate-900 p-3 flex items-end gap-3"
+          >
             <textarea
               rows={2}
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Faça uma pergunta sobre IBS, CBS, IS, NCM ou transição 2026–2033..."
               className="flex-1 bg-transparent border-none outline-none resize-none text-sm text-slate-100 placeholder-slate-500"
             />
@@ -190,7 +203,11 @@ export default function JuremaChat() {
               disabled={carregando || !mensagem.trim()}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold hover:bg-sky-500 transition-colors"
             >
-              {carregando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {carregando ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} />
+              )}
               Enviar
             </button>
           </form>
