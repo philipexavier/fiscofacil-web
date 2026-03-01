@@ -1,14 +1,82 @@
 import { useState } from 'react'
 import { Search, Upload, FileSearch } from 'lucide-react'
-import { buscarProdutos } from '../lib/api'
-import toast, { Toaster } from 'react-hot-toast'
 import Link from 'next/link'
+import toast, { Toaster } from 'react-hot-toast'
+import { buscarProdutos } from '../lib/api'
+
+const noticiasTributarias = [
+  {
+    id: 1,
+    tag: 'Reforma 2026',
+    titulo: 'Reforma tributária entra em fase de testes em 2026',
+    resumo:
+      'Empresas devem destacar CBS e IBS nas notas fiscais já em 2026, preparando a transição para extinção dos tributos atuais até 2033.',
+    link: 'https://agenciabrasil.ebc.com.br/economia/noticia/2026-01/reforma-tributaria-entra-em-fase-de-testes-em-2026',
+  },
+  {
+    id: 2,
+    tag: 'Notas fiscais',
+    titulo: 'Nota fiscal sem IBS e CBS exige cautela em 2026',
+    resumo:
+      'Especialistas alertam que a transição muda a dinâmica de emissão de documentos fiscais e exige atualização imediata dos sistemas.',
+    link: 'https://www.contabeis.com.br/noticias/75347/nota-fiscal-sem-ibs-e-cbs-exige-cautela-em-2026/',
+  },
+  {
+    id: 3,
+    tag: 'APIs Fisco',
+    titulo: 'APIs oficiais facilitam integração de tabelas IBS e CBS',
+    resumo:
+      'APIs públicas permitem sincronizar tabelas fiscais em JSON e reduzir divergências de alíquotas entre ERPs e o fisco.',
+    link: 'https://guiatributario.net/2025/10/21/api-de-integracao-gratuita-tabelas-ibs-e-cbs/',
+  },
+]
+
+function PainelNoticias() {
+  return (
+    <section className="mt-16 w-full max-w-5xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <h2 className="text-sm font-semibold text-slate-100">
+            📊 Análises e notícias sobre a Reforma 2026–2033
+          </h2>
+          <span className="text-[11px] text-slate-500">
+            Atualize sua estratégia tributária antes da transição completa
+          </span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {noticiasTributarias.map((n) => (
+            <a
+              key={n.id}
+              href={n.link}
+              target="_blank"
+              rel="noreferrer"
+              className="group bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex flex-col justify-between hover:border-sky-500/70 transition-colors"
+            >
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-900/40 text-sky-300 mb-2">
+                {n.tag}
+              </span>
+              <h3 className="text-xs font-semibold text-slate-100 mb-1 group-hover:text-sky-300">
+                {n.titulo}
+              </h3>
+              <p className="text-[11px] text-slate-400 mb-2">
+                {n.resumo}
+              </p>
+              <span className="text-[11px] text-sky-400 group-hover:text-sky-300 mt-auto">
+                Ver detalhes ↗
+              </span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
 export default function Home() {
-  const [query, setQuery]       = useState('')
+  const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [total, setTotal]       = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [total, setTotal] = useState(0)
 
   async function handleBuscar(e) {
     e.preventDefault()
@@ -62,17 +130,26 @@ export default function Home() {
         {/* Botões de ação */}
         <div className="flex gap-3 mt-4 justify-center flex-wrap">
           <Link href="/busca-em-massa">
-            <button type="button" className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button
+              type="button"
+              className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+            >
               <Upload size={16} /> Pesquisa em Massa
             </button>
           </Link>
           <Link href="/classificar">
-            <button type="button" className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button
+              type="button"
+              className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+            >
               <FileSearch size={16} /> Classificar com IA
             </button>
           </Link>
           <Link href="/login">
-            <button type="button" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+            <button
+              type="button"
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+            >
               Área do Contador
             </button>
           </Link>
@@ -90,19 +167,21 @@ export default function Home() {
       {resultados.length > 0 && (
         <div className="w-full max-w-2xl mt-3 space-y-3 pb-12">
           {resultados.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <div
+              key={item.id}
+              className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition"
+            >
               <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">
-
-                  {/* Descrição com highlight do Meilisearch */}
                   <p
                     className="font-semibold text-gray-800 text-sm leading-snug"
                     dangerouslySetInnerHTML={{
-                      __html: item._formatted?.descricao || item.descricao_limpa || item.descricao
+                      __html:
+                        item._formatted?.descricao ||
+                        item.descricao_limpa ||
+                        item.descricao,
                     }}
                   />
-
-                  {/* Código NCM */}
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
                     <span className="font-mono text-blue-600 text-sm bg-blue-50 px-2 py-0.5 rounded">
                       {item._formatted?.codigo || item.codigo}
@@ -113,16 +192,19 @@ export default function Home() {
                       </span>
                     )}
                   </div>
-
                 </div>
 
-                {/* Badge nível */}
-                <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 font-medium ${
-                  item.nivel === 'ncm'        ? 'bg-blue-100 text-blue-700' :
-                  item.nivel === 'posicao'    ? 'bg-purple-100 text-purple-700' :
-                  item.nivel === 'capitulo'   ? 'bg-orange-100 text-orange-700' :
-                  'bg-gray-100 text-gray-500'
-                }`}>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full flex-shrink-0 font-medium ${
+                    item.nivel === 'ncm'
+                      ? 'bg-blue-100 text-blue-700'
+                      : item.nivel === 'posicao'
+                      ? 'bg-purple-100 text-purple-700'
+                      : item.nivel === 'capitulo'
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
                   {item.nivel}
                 </span>
               </div>
@@ -131,13 +213,21 @@ export default function Home() {
         </div>
       )}
 
-      {/* Estado vazio inicial */}
+      {/* Estado vazio inicial + Painel de notícias */}
       {resultados.length === 0 && !loading && query === '' && (
-        <div className="mt-16 text-center text-gray-400">
-          <Search size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="text-sm">Digite uma descrição ou código NCM para começar</p>
-          <p className="text-xs mt-1">Ex: "bovinos reprodutores", "8471", "parafuso inox"</p>
-        </div>
+        <>
+          <div className="mt-16 text-center text-gray-400">
+            <Search size={48} className="mx-auto mb-4 opacity-30" />
+            <p className="text-sm">
+              Digite uma descrição ou código NCM para começar
+            </p>
+            <p className="text-xs mt-1">
+              Ex: &quot;bovinos reprodutores&quot;, &quot;8471&quot;, &quot;parafuso inox&quot;
+            </p>
+          </div>
+
+          <PainelNoticias />
+        </>
       )}
     </div>
   )
