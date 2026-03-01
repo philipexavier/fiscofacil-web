@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { Mail, Lock, LogIn, LogOut, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -11,6 +11,18 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [usuario, setUsuario] = useState(null)
   const router = useRouter()
+
+  // Se já tiver sessão, pula direto para o dashboard
+  useEffect(() => {
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        setUsuario(data.session.user)
+        router.replace('/dashboard')
+      }
+    }
+    checkSession()
+  }, [router])
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -34,8 +46,8 @@ export default function Login() {
       setUsuario(data.user)
       toast.success('Login realizado com sucesso!')
 
-      // redireciona para a área protegida (ajuste o path se necessário)
-      router.push('/area-do-contador') // ou '/area-do-contador'
+      // Após login, vai para o painel de escolha
+      router.push('/dashboard')
     } catch (err) {
       toast.error('Erro inesperado ao autenticar.')
     } finally {
@@ -93,9 +105,7 @@ export default function Login() {
         {/* Sessão ativa */}
         {usuario && (
           <div className="mb-4 bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-3 text-xs text-emerald-100">
-            <p className="font-semibold text-emerald-300">
-              Sessão ativa
-            </p>
+            <p className="font-semibold text-emerald-300">Sessão ativa</p>
             <p className="mt-1 break-all">{usuario.email}</p>
           </div>
         )}
@@ -157,7 +167,9 @@ export default function Login() {
         )}
 
         <p className="mt-4 text-[11px] text-slate-500">
-          Dica: crie o usuário em <span className="font-mono">Authentication → Users</span> no painel do Supabase e use o mesmo e‑mail/senha aqui.
+          Dica: crie o usuário em{' '}
+          <span className="font-mono">Authentication → Users</span> no painel
+          do Supabase e use o mesmo e‑mail/senha aqui.
         </p>
       </div>
     </div>
