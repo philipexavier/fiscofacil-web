@@ -96,32 +96,32 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center px-4">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center px-4">
       <Toaster />
 
       {/* Header */}
       <div className="mt-16 mb-8 text-center">
-        <h1 className="text-4xl font-bold text-blue-700">FiscoFácil</h1>
-        <p className="text-gray-500 mt-2">
+        <h1 className="text-4xl font-bold text-sky-400">FiscoFácil</h1>
+        <p className="text-slate-400 mt-2">
           Consulta inteligente de NCM + Guia tributário com IA
         </p>
       </div>
 
       {/* Barra de busca */}
       <form onSubmit={handleBuscar} className="w-full max-w-2xl">
-        <div className="flex items-center border-2 border-blue-400 rounded-full px-4 py-3 bg-white shadow-md">
-          <Search className="text-gray-400 mr-3 flex-shrink-0" size={20} />
+        <div className="flex items-center border-2 border-sky-500 rounded-full px-4 py-3 bg-slate-900 shadow-md">
+          <Search className="text-slate-400 mr-3 flex-shrink-0" size={20} />
           <input
             type="text"
             placeholder="Pesquise por descrição ou código NCM... ex: bovinos, 0101, parafuso"
-            className="flex-1 outline-none text-gray-700 text-sm"
+            className="flex-1 outline-none text-slate-100 text-sm bg-transparent placeholder:text-slate-500"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <button
             type="submit"
             disabled={loading}
-            className="ml-3 bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
+            className="ml-3 bg-sky-500 text-slate-950 px-4 py-1.5 rounded-full text-sm hover:bg-sky-400 disabled:opacity-50 flex-shrink-0"
           >
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
@@ -132,7 +132,7 @@ export default function Home() {
           <Link href="/busca-em-massa">
             <button
               type="button"
-              className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+              className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-4 py-2 rounded-lg text-sm text-slate-100 hover:border-sky-500 hover:bg-slate-900/80"
             >
               <Upload size={16} /> Pesquisa em Massa
             </button>
@@ -140,7 +140,7 @@ export default function Home() {
           <Link href="/classificar">
             <button
               type="button"
-              className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+              className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-4 py-2 rounded-lg text-sm text-slate-100 hover:border-sky-500 hover:bg-slate-900/80"
             >
               <FileSearch size={16} /> Classificar com IA
             </button>
@@ -148,7 +148,7 @@ export default function Home() {
           <Link href="/login">
             <button
               type="button"
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+              className="flex items-center gap-2 bg-sky-500 text-slate-950 px-4 py-2 rounded-lg text-sm hover:bg-sky-400"
             >
               Área do Contador
             </button>
@@ -158,7 +158,7 @@ export default function Home() {
 
       {/* Total de resultados */}
       {total > 0 && (
-        <p className="text-sm text-gray-400 mt-6">
+        <p className="text-sm text-slate-500 mt-6">
           {total.toLocaleString()} resultado(s) para <strong>"{query}"</strong>
         </p>
       )}
@@ -169,12 +169,12 @@ export default function Home() {
           {resultados.map((item) => (
             <div
               key={item.id}
-              className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition"
+              className="bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-800 hover:border-sky-500/60 transition"
             >
               <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <p
-                    className="font-semibold text-gray-800 text-sm leading-snug"
+                    className="font-semibold text-slate-100 text-sm leading-snug"
                     dangerouslySetInnerHTML={{
                       __html:
                         item._formatted?.descricao ||
@@ -183,11 +183,11 @@ export default function Home() {
                     }}
                   />
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    <span className="font-mono text-blue-600 text-sm bg-blue-50 px-2 py-0.5 rounded">
+                    <span className="font-mono text-sky-300 text-sm bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
                       {item._formatted?.codigo || item.codigo}
                     </span>
                     {item.data_inicio && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-slate-500">
                         Vigente desde {item.data_inicio}
                       </span>
                     )}
@@ -197,12 +197,12 @@ export default function Home() {
                 <span
                   className={`text-xs px-2 py-1 rounded-full flex-shrink-0 font-medium ${
                     item.nivel === 'ncm'
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-sky-500/15 text-sky-300 border border-sky-500/40'
                       : item.nivel === 'posicao'
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-purple-500/15 text-purple-300 border border-purple-500/40'
                       : item.nivel === 'capitulo'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-gray-100 text-gray-500'
+                      ? 'bg-orange-500/15 text-orange-300 border border-orange-500/40'
+                      : 'bg-slate-700 text-slate-200 border border-slate-600'
                   }`}
                 >
                   {item.nivel}
@@ -216,7 +216,7 @@ export default function Home() {
       {/* Estado vazio inicial + Painel de notícias */}
       {resultados.length === 0 && !loading && query === '' && (
         <>
-          <div className="mt-16 text-center text-gray-400">
+          <div className="mt-16 text-center text-slate-500">
             <Search size={48} className="mx-auto mb-4 opacity-30" />
             <p className="text-sm">
               Digite uma descrição ou código NCM para começar
