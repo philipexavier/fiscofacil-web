@@ -57,6 +57,7 @@ export default function Login() {
       setLoading(false)
     }
   }
+  console.log('SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL)
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center px-4">
